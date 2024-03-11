@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration> 
+    <appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %highlight{%-5level} %msg%n"/>  
+        </Console>
+    </appenders> 
+    <loggers>     
+        <root level="INFO">
+            <appender-ref ref="Console"/>
+        </root>    
+    </loggers>
+</Configuration>
