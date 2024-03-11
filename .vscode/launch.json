@@ -1,0 +1,16 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "BatchUpdater",
+            "request": "launch",
+            "mainClass": "com.neo4j.BatchUpdater",
+            "projectName": "batch-update",
+            "args": "-cthread 16 -uri neo4j://localhost:7687 -save false"
+        }
+    ]
+}
