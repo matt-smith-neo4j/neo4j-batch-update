@@ -157,7 +157,6 @@ public class BatchUpdater implements AutoCloseable {
             collectionCypherQueries = new ArrayList<String>();
             collectionCypherQueries.add(defaultCollectionCypher);
         }
-
         logger.info("Processing collection step 1 of {}", collectionCypherQueries.size());
         List<org.neo4j.driver.Record> recordsFromPreviousStep = processReadCypherInBatches(collectionCypherQueries.get(0), null, 0, 0);
         int recordsFromPreviousStepSize = recordsFromPreviousStep.size();
@@ -244,7 +243,6 @@ public class BatchUpdater implements AutoCloseable {
             updateCypherQueries = new ArrayList<String>();
             updateCypherQueries.add(defaultUpdateCypher);
         }
-
         List<org.neo4j.driver.Record> recordsFromPreviousStep = parameterRecords;
         int recordsFromPreviousStepSize;
         for(int stepNumber = 1; stepNumber <= updateCypherQueries.size(); stepNumber++) {
@@ -255,26 +253,24 @@ public class BatchUpdater implements AutoCloseable {
             if(SAVE_RESULTS && recordsFromPreviousStepSize > 0) writeResultsFile(recordsFromPreviousStep, "update_" + stepNumber + ".csv");
         }
         return recordsFromPreviousStep;
-
     }
 
     public static void main(String... args) {
         Configurator.setLevel(logger, LOG_LEVEL);
-        
         CommandLineParser commandLineParser = new DefaultParser();
         Options options = new Options();
         options.addOption("uri", "neo4j-uri", true, "URI to the Neo4j instance or cluster. Defaults to " + NEO4J_URI);
         options.addOption("db", "neo4j-database", true, "Database to run queries against. Defaults to " + NEO4J_DATABASE);
         options.addOption("user", "neo4j-username", true, "Neo4j access credentials user name. Defaults to " + NEO4J_USER);
         options.addOption("pw", "neo4j-password", true, "Neo4j access credentials password. Defaults to " + NEO4J_PASSWORD);
-        options.addOption("cbatch", "collect-batch", true, "Number of records to be processed per batch in collection steps. Note that the initial collection step does not use batching. Defaults to " + COLLECT_BATCH_SIZE);
-        options.addOption("cthread", "collect-threads", true, "Number of parallel threads used to process batches in collection steps. Defaults to " + COLLECT_THREAD_COUNT);
-        options.addOption("cpath", "collect-path", true, "Path to where the collect*.cypher files are. Defaults to \"" + COLLECT_FILES_PATH + "\" (current directory)");
-        options.addOption("ubatch", "update-batch", true, "Number of records to be processed per batch in update steps. Defaults to " + UPDATE_BATCH_SIZE);
-        options.addOption("uthread", "update-threads", true, "Number of parallel threads used to process batches in update steps. Defaults to " + UPDATE_THREAD_COUNT);
-        options.addOption("upath", "update-path", true, "Path to where the update*.cypher files are. Defaults to \"" + UPDATE_FILES_PATH + "\" (current directory)");
-        options.addOption("rpath", "results-path", true, "Path to where the results of each step are written. Defaults to \"" + RESULT_FILES_PATH + "\" (current directory)");
-        options.addOption("save", "save-results", true, "Save the resulting records of each step as CSV files. Defaults to " + SAVE_RESULTS);
+        options.addOption("cb", "collect-batch-size", true, "Number of records to be processed per batch in collection steps. Note that the initial collection step does not use batching. Defaults to " + COLLECT_BATCH_SIZE);
+        options.addOption("ct", "collect-threads", true, "Number of parallel threads used to process batches in collection steps. Defaults to " + COLLECT_THREAD_COUNT);
+        options.addOption("cp", "collect-path", true, "Path to where the collect*.cypher files are. Defaults to \"" + COLLECT_FILES_PATH + "\" (current directory)");
+        options.addOption("ub", "update-batch-size", true, "Number of records to be processed per batch in update steps. Defaults to " + UPDATE_BATCH_SIZE);
+        options.addOption("ut", "update-threads", true, "Number of parallel threads used to process batches in update steps. Defaults to " + UPDATE_THREAD_COUNT);
+        options.addOption("up", "update-path", true, "Path to where the update*.cypher files are. Defaults to \"" + UPDATE_FILES_PATH + "\" (current directory)");
+        options.addOption("rp", "results-path", true, "Path to where the results of each step are written. Defaults to \"" + RESULT_FILES_PATH + "\" (current directory)");
+        options.addOption("save", "results-save", true, "Save the resulting records of each step as CSV files. Defaults to " + SAVE_RESULTS);
         options.addOption("h", "help", false, "Show this help message.");
         options.getOptions().stream().forEach(option -> {
             String[] longOptionNameParts = option.getLongOpt().split("-");
@@ -284,6 +280,8 @@ public class BatchUpdater implements AutoCloseable {
             CommandLine commandLine = commandLineParser.parse(options, args);
             if(commandLine.hasOption("help")){
                 HelpFormatter formatter = new HelpFormatter();
+                int terminalWidth = org.jline.terminal.TerminalBuilder.terminal().getWidth();
+                if(terminalWidth > 80) formatter.setWidth(terminalWidth);
                 formatter.printHelp("java -jar neo4j-batch-updater", "", options, "", true);
                 return;
             }
@@ -298,17 +296,14 @@ public class BatchUpdater implements AutoCloseable {
             UPDATE_THREAD_COUNT = Integer.parseInt(commandLine.getOptionValue("update-threads", Integer.toString(UPDATE_THREAD_COUNT)));
             UPDATE_FILES_PATH = commandLine.getOptionValue("update-path", UPDATE_FILES_PATH);
             RESULT_FILES_PATH = commandLine.getOptionValue("update-path", RESULT_FILES_PATH);
-            SAVE_RESULTS = Boolean.parseBoolean(commandLine.getOptionValue("save-results", Boolean.toString(SAVE_RESULTS)));
+            SAVE_RESULTS = Boolean.parseBoolean(commandLine.getOptionValue("results-save", Boolean.toString(SAVE_RESULTS)));
         }
-        catch (ParseException parseException) {
-            logger.error("Unabled to parse command line options due to the following error:\n{}", parseException.getMessage());
+        catch (ParseException | IOException exception) {
+            logger.error("Unabled to parse command line options due to the following error. All defaults will be used.\n{}", exception.getMessage());
         }
-
         logger.info("Starting Neo4j Batch Update process");
-
         try (var batchUpdater = new BatchUpdater(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)) {
             List<org.neo4j.driver.Record> parameterRecords = batchUpdater.collect(COLLECT_BATCH_SIZE, COLLECT_THREAD_COUNT);
-            //List<org.neo4j.driver.Record> updateResultRecords = batchUpdater.update(parameterRecords, UPDATE_BATCH_SIZE, UPDATE_THREAD_COUNT);
             batchUpdater.update(parameterRecords, UPDATE_BATCH_SIZE, UPDATE_THREAD_COUNT);
         }
         logger.info("Completed Neo4j Batch Update process");

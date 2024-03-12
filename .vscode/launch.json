@@ -10,7 +10,7 @@
             "request": "launch",
             "mainClass": "com.neo4j.BatchUpdater",
             "projectName": "batch-update",
-            "args": "-cthread 16 -uri neo4j://localhost:7687 -save false"
+            "args": "-ct 16 -uri neo4j://localhost:7687 -save false"
         }
     ]
 }
