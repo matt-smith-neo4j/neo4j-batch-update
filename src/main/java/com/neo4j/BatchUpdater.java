@@ -35,6 +35,7 @@ public class BatchUpdater implements AutoCloseable {
 
     private static Level LOG_LEVEL = Level.DEBUG;
     private static String NEO4J_URI = "bolt://localhost:7687";
+    private static String NEO4J_DATABASE = "neo4j";
     private static String NEO4J_USER = "neo4j";
     private static String NEO4J_PASSWORD = "P@ssw0rd";
     private static int COLLECT_BATCH_SIZE = 10000;
@@ -259,11 +260,11 @@ public class BatchUpdater implements AutoCloseable {
 
     public static void main(String... args) {
         Configurator.setLevel(logger, LOG_LEVEL);
-        logger.info("Starting Neo4j Batch Update process");
-
+        
         CommandLineParser commandLineParser = new DefaultParser();
         Options options = new Options();
         options.addOption("uri", "neo4j-uri", true, "URI to the Neo4j instance or cluster. Defaults to " + NEO4J_URI);
+        options.addOption("db", "neo4j-database", true, "Database to run queries against. Defaults to " + NEO4J_DATABASE);
         options.addOption("user", "neo4j-username", true, "Neo4j access credentials user name. Defaults to " + NEO4J_USER);
         options.addOption("pw", "neo4j-password", true, "Neo4j access credentials password. Defaults to " + NEO4J_PASSWORD);
         options.addOption("cbatch", "collect-batch", true, "Number of records to be processed per batch in collection steps. Note that the initial collection step does not use batching. Defaults to " + COLLECT_BATCH_SIZE);
@@ -287,6 +288,7 @@ public class BatchUpdater implements AutoCloseable {
                 return;
             }
             NEO4J_URI = commandLine.getOptionValue("neo4j-uri", NEO4J_URI);
+            NEO4J_DATABASE = commandLine.getOptionValue("neo4j-database", NEO4J_DATABASE);
             NEO4J_USER = commandLine.getOptionValue("neo4j-username", NEO4J_USER);
             NEO4J_PASSWORD = commandLine.getOptionValue("neo4j-password", NEO4J_PASSWORD);
             COLLECT_BATCH_SIZE = Integer.parseInt(commandLine.getOptionValue("collect-batch", Integer.toString(COLLECT_BATCH_SIZE)));
@@ -301,6 +303,8 @@ public class BatchUpdater implements AutoCloseable {
         catch (ParseException parseException) {
             logger.error("Unabled to parse command line options due to the following error:\n{}", parseException.getMessage());
         }
+
+        logger.info("Starting Neo4j Batch Update process");
 
         try (var batchUpdater = new BatchUpdater(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)) {
             List<org.neo4j.driver.Record> parameterRecords = batchUpdater.collect(COLLECT_BATCH_SIZE, COLLECT_THREAD_COUNT);
