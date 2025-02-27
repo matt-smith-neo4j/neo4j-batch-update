@@ -16,6 +16,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
+import org.neo4j.driver.SessionConfig;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -84,7 +85,7 @@ public class BatchUpdater implements AutoCloseable {
         List<org.neo4j.driver.Record> combinedResults = new ArrayList<org.neo4j.driver.Record>();
         if(parameterRecords == null) {
             logger.info("The following read cypher will be processed in a single batch:\n{}", cypherQuery);
-            try (var session = driver.session()) {
+            try (var session = driver.session(SessionConfig.builder().withDatabase(NEO4J_DATABASE).build())) {
                 combinedResults = session.executeRead(tx -> {
                                     var result = tx.run(cypherQuery);
                                     return result.list();
@@ -102,7 +103,7 @@ public class BatchUpdater implements AutoCloseable {
                 int parameterRecordBatchSize = parameterRecordBatch.size();
                 logger.info("Processing batch of {} parameter record{}", String.format("%,d", parameterRecordBatchSize), parameterRecordBatchSize == 1 ? "" : "s");
                 List<org.neo4j.driver.Record> batchResults;
-                try (var session = driver.session()) {
+                try (var session = driver.session(SessionConfig.builder().withDatabase(NEO4J_DATABASE).build())) {
                     batchResults = session.executeRead(tx -> {
                                         Map<String,Object> queryParameters = new HashMap<>();
                                         queryParameters.put("batch", parameterRecordBatch.stream().map(record -> record.asMap()).toList());
@@ -176,7 +177,7 @@ public class BatchUpdater implements AutoCloseable {
         List<org.neo4j.driver.Record> combinedResults = new ArrayList<org.neo4j.driver.Record>();
         if(parameterRecords == null) {
             logger.info("The followiong write cypher will be processed in a single batch:\n{}", cypherQuery);
-            try (var session = driver.session()) {
+            try (var session = driver.session(SessionConfig.builder().withDatabase(NEO4J_DATABASE).build())) {
                 combinedResults = session.executeWrite(tx -> {
                                     var result = tx.run(cypherQuery);
                                     return result.list();
@@ -194,7 +195,7 @@ public class BatchUpdater implements AutoCloseable {
                 int parameterRecordBatchSize = parameterRecordBatch.size();
                 logger.info("Processing batch of {} parameter record{}", String.format("%,d", parameterRecordBatchSize), parameterRecordBatchSize == 1 ? "" : "s");
                 List<org.neo4j.driver.Record> batchResults;
-                try (var session = driver.session()) {
+                try (var session = driver.session(SessionConfig.builder().withDatabase(NEO4J_DATABASE).build())) {
                     batchResults = session.executeWrite(tx -> {
                                         Map<String,Object> queryParameters = new HashMap<>();
                                         queryParameters.put("batch", parameterRecordBatch.stream().map(record -> record.asMap()).toList());
@@ -289,17 +290,18 @@ public class BatchUpdater implements AutoCloseable {
             NEO4J_DATABASE = commandLine.getOptionValue("neo4j-database", NEO4J_DATABASE);
             NEO4J_USER = commandLine.getOptionValue("neo4j-username", NEO4J_USER);
             NEO4J_PASSWORD = commandLine.getOptionValue("neo4j-password", NEO4J_PASSWORD);
-            COLLECT_BATCH_SIZE = Integer.parseInt(commandLine.getOptionValue("collect-batch", Integer.toString(COLLECT_BATCH_SIZE)));
+            COLLECT_BATCH_SIZE = Integer.parseInt(commandLine.getOptionValue("collect-batch-size", Integer.toString(COLLECT_BATCH_SIZE)));
             COLLECT_THREAD_COUNT = Integer.parseInt(commandLine.getOptionValue("collect-threads", Integer.toString(COLLECT_THREAD_COUNT)));
             COLLECT_FILES_PATH = commandLine.getOptionValue("collect-path", COLLECT_FILES_PATH);
-            UPDATE_BATCH_SIZE = Integer.parseInt(commandLine.getOptionValue("update-batch", Integer.toString(UPDATE_BATCH_SIZE)));
+            UPDATE_BATCH_SIZE = Integer.parseInt(commandLine.getOptionValue("update-batch-size", Integer.toString(UPDATE_BATCH_SIZE)));
             UPDATE_THREAD_COUNT = Integer.parseInt(commandLine.getOptionValue("update-threads", Integer.toString(UPDATE_THREAD_COUNT)));
             UPDATE_FILES_PATH = commandLine.getOptionValue("update-path", UPDATE_FILES_PATH);
-            RESULT_FILES_PATH = commandLine.getOptionValue("update-path", RESULT_FILES_PATH);
+            RESULT_FILES_PATH = commandLine.getOptionValue("results-path", RESULT_FILES_PATH);
             SAVE_RESULTS = Boolean.parseBoolean(commandLine.getOptionValue("results-save", Boolean.toString(SAVE_RESULTS)));
         }
-        catch (ParseException | IOException exception) {
-            logger.error("Unabled to parse command line options due to the following error. All defaults will be used.\n{}", exception.getMessage());
+        catch (ParseException | IOException | NumberFormatException exception) {
+            logger.error("Unabled to parse command line options due to the following error. Processing will be aborted.\n{}\n{}", exception.getClass().getName(), exception.getMessage());
+            return;
         }
         logger.info("Starting Neo4j Batch Update process");
         try (var batchUpdater = new BatchUpdater(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)) {
